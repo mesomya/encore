@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Encore",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Your favorite posts deserve a second pass. Encore brings the tweets you've liked and saved back around in your timeline, and keeps a private archive of them all.",
-  "permissions": ["storage", "unlimitedStorage", "alarms"],
+  "permissions": ["storage", "unlimitedStorage", "scripting", "webRequest"],
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*"

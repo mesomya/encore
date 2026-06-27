@@ -60,8 +60,8 @@ searchable-by-you archive of everything you've found worth keeping.
   in, tagged **You liked this** / **You bookmarked this**.
 - 🎚 **In your control** — one master switch, plus **Spacing** (how often) and **Depth**
   (how far back a collect walks). Bring back likes, saves, or both.
-- 🧲 **Automatic collecting** — open your Bookmarks or Likes page and it pulls in anything
-  new on its own, with a quiet on-page status pill. It only fetches what's new.
+- 🧲 **One-click collecting** — visit your Bookmarks or Likes page once so Encore learns
+  the request, then hit **Collect** in the popup. Re-run it anytime to pull in what's new.
 - 🎨 **Pixel-native** — inherits X's font, spacing, action bar, and theme (Default / Dim /
   Lights-out), so resurfaced posts read as part of the timeline, not an overlay.
 - 🔒 **100% local** — a private IndexedDB archive on the extension's own origin. No
@@ -74,15 +74,16 @@ X's web app talks to a private GraphQL API using credentials only the page itsel
 (a bearer token, the `ct0` CSRF token, a per-request transaction id). Rather than forge
 any of that, Encore **rides along with the requests X already makes:**
 
-1. A script in the page watches the calls X fires to load your **Bookmarks** and
-   **Likes**. When it sees one, it **saves the posts** in the response *and* **remembers
-   the request's shape**.
+1. While you're on x.com, Encore observes — read-only, at the browser's network layer —
+   the calls X fires to load your **Bookmarks** and **Likes**, and **remembers each
+   request's shape**. It never blocks or modifies traffic.
 2. On **Collect**, it replays that remembered request with a pagination cursor, walking
    page-by-page through your history into a private local database.
 3. As you scroll Home, it counts real posts and, every few, weaves one of yours back in —
    appended *inside* a real tweet cell so X's own layout engine keeps everything aligned.
 
-Nothing leaves your machine that the page wasn't already sending to X.
+Collection runs only when you click it in the popup — Encore never collects or shows
+anything on its own. Nothing leaves your machine that the page wasn't already sending to X.
 
 > 📐 Want the deep version — the three execution contexts, the cross-world messaging, and
 > the decisions behind it? See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
@@ -112,11 +113,11 @@ git clone https://github.com/mesomya/encore.git
 
 1. Pin Encore (🧩 puzzle icon → 📌).
 2. On **x.com** (logged in), open your **Bookmarks** page once, and your **Likes** tab
-   once. That's the one-time step that teaches Encore the request it replays — you'll see
-   a blue **"Encore · Checking your bookmarks…"** pill confirm it.
+   once. That's the one-time step that teaches Encore the request it replays — it happens
+   silently in the background.
 3. Open the Encore popup → **Collect everything**, then head to Home and scroll.
 
-From then on it keeps up automatically.
+Re-run **Collect** from the popup whenever you want to pull in newly saved posts.
 
 ## Configuration
 
@@ -133,8 +134,10 @@ From then on it keeps up automatically.
 
 - All data lives in a local **IndexedDB** on the extension's own origin — not readable by
   x.com, never uploaded anywhere.
-- Host access is limited to `x.com` / `twitter.com`; the only other permissions are local
-  `storage` and `alarms` (for the periodic top-up).
+- Host access is limited to `x.com` / `twitter.com`. The other permissions are `storage`
+  (the local archive), `scripting` (attach to an x.com tab that was already open when
+  Encore loaded), and `webRequest` — used **read-only**, to observe the Bookmarks/Likes
+  request X already makes so Encore can replay it. It never blocks or changes traffic.
 - Encore reads **only your own** liked and saved posts, through your own logged-in
   session — the same data X already shows you.
 
@@ -152,7 +155,7 @@ encore/
 │  ├─ page-hook.js      # MAIN world: captures + replays X's GraphQL requests
 │  ├─ content.js        # ISOLATED world: bridge + weaves cards into the timeline
 │  ├─ background.js     # service worker: IndexedDB archive, settings, collect
-│  ├─ mixer.css         # styles for the woven-in cards + status pill
+│  ├─ mixer.css         # styles for the woven-in cards
 │  └─ popup/            # the control panel
 ├─ icons/               # generated PNG icons
 ├─ tools/make-icons.mjs # regenerates the icons (no dependencies)

@@ -13,23 +13,18 @@
 (() => {
   "use strict";
 
+  // Installed once per page. We may be injected twice — by the manifest at
+  // document_start AND programmatically by the worker into a tab that was
+  // already open. Guard so we never wrap fetch/XHR more than once.
+  if (window.__ENCORE_PAGE_HOOK__) return;
+  window.__ENCORE_PAGE_HOOK__ = true;
+
   const TAG_PAGE = "xhm-page"; // messages we send out
   const TAG_CONTENT = "xhm-content"; // messages we listen for
   const GQL_RE = /\/i\/api\/graphql\/([^/]+)\/([^/?]+)/;
 
   // Captured request templates, keyed by operation kind.
   const templates = Object.create(null); // { bookmarks: {...}, likes: {...} }
-
-  // Log each distinct GraphQL operation once so we can see what X actually
-  // fires (diagnoses op-name / transport drift from the page console).
-  const seenOps = new Set();
-  function logOp(op) {
-    if (seenOps.has(op)) return;
-    seenOps.add(op);
-    try {
-      console.info("[Encore] saw GraphQL op:", op, "→", classify(op) || "(ignored)");
-    } catch (_) {}
-  }
 
   const origFetch = window.fetch;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -266,7 +261,6 @@
     let kind = null;
     if (url && GQL_RE.test(url)) {
       const m = url.match(GQL_RE);
-      logOp(m[2]);
       kind = classify(m[2]);
       // Only learn from / harvest the list READ (GET). Bookmark + unbookmark are
       // POST mutations that share the "bookmark" name — capturing one would
@@ -314,7 +308,6 @@
     const info = this.__xhm;
     if (info && info.url && GQL_RE.test(info.url)) {
       const op = info.url.match(GQL_RE)[2];
-      logOp(op);
       const kind = classify(op);
       const method = (info.method || "GET").toUpperCase();
       // GET only — ignore bookmark/unbookmark mutations (see fetch patch).
@@ -460,8 +453,5 @@
     else if (d.type === "PING") emitStatus();
   });
 
-  try {
-    console.info("[Encore] page hook installed on", location.host, "— browse Bookmarks/Likes to teach it.");
-  } catch (_) {}
   emitStatus();
 })();

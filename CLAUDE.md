@@ -13,10 +13,10 @@ step, no dependencies.**
 
 | Path | Role |
 | --- | --- |
-| `src/page-hook.js` | page MAIN world — captures + replays X's GraphQL requests. **No `chrome.*` APIs.** |
+| `src/page-hook.js` | page MAIN world — replays X's GraphQL requests (also a secondary capture path). **No `chrome.*` APIs.** |
 | `src/content.js` | ISOLATED world — bridge to the worker + weaves cards into the timeline. |
-| `src/background.js` | service worker — IndexedDB archive, settings, collect orchestration. |
-| `src/mixer.css` | styles for the woven-in cards + the status pill. |
+| `src/background.js` | service worker — IndexedDB archive, settings, collect orchestration, **primary request capture (`webRequest`)**. |
+| `src/mixer.css` | styles for the woven-in cards. |
 | `src/popup/` | the control panel (has a mock backend for standalone preview). |
 | `docs/ARCHITECTURE.md` | **the deep dive** — read this before non-trivial changes. |
 
@@ -25,8 +25,9 @@ step, no dependencies.**
 - No dependencies, no bundler. Plain ES modules + DOM + Chrome extension APIs.
 - User-facing strings use Encore's vocabulary (Collected/Liked/Saved, Replay, Spacing,
   Depth…). Internal CSS/JS prefix is `xhm-` — leave it.
-- `classify()` in `page-hook.js` matches X op-names by substring; always guard against
-  look-alikes (e.g. `BookmarkFoldersSlice`, `CreateBookmark`).
+- `classify()` in `page-hook.js` (mirrored as `classifyOp()` in `background.js`) matches X
+  op-names by substring; always guard against look-alikes (e.g. `BookmarkFoldersSlice`,
+  `CreateBookmark`). Keep the two in sync.
 - Privacy is non-negotiable: nothing leaves the machine. No analytics, no remote calls
   beyond what X already makes for the user.
 
@@ -42,7 +43,8 @@ node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8'))"
 - UI can be verified headless via a throwaway HTML page that loads `src/mixer.css` and
   renders `buildCard()`'s markup (served over `http://`). The TwitterChirp font only
   exists on x.com — judge layout, not the font.
-- Capture/collect needs a logged-in X session; use the `[Encore] …` console breadcrumbs.
+- Capture/collect needs a logged-in X session. Runtime `console` logging was removed (keep
+  it that way); confirm capture via `chrome.storage.local.templates` in the worker console.
 
 ## Gotchas (full list in `docs/ARCHITECTURE.md`)
 
@@ -50,5 +52,6 @@ node -e "JSON.parse(require('fs').readFileSync('manifest.json','utf8'))"
   `location.pathname` for SPA route changes.
 - `chrome.runtime.sendMessage` throws **synchronously** on an invalidated context → route
   all messaging through `bg()`.
-- Content scripts only inject into tabs loaded **after** the extension is enabled →
-  `onInstalled` reloads open x.com tabs.
+- Content scripts only inject into tabs loaded **after** the extension is enabled → the
+  worker calls `injectIntoOpenTabs()` (`chrome.scripting`) to attach to already-open x.com
+  tabs. (Capture doesn't depend on it — `webRequest` sees the request anyway.)

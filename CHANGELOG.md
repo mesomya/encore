@@ -4,6 +4,27 @@ All notable changes to Encore are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-06-27
+
+### Changed
+- **Reworked request capture to the browser's network layer** (`webRequest`, read-only).
+  The old approach relied on a page-side `window.fetch` hook, which could silently miss
+  X's request depending on the browser/page state — the cause of "Open your bookmarks page
+  once… and then try again" appearing *while already on the bookmarks page* on some
+  machines. Capture now works consistently across platforms and Chromium browsers.
+
+### Removed
+- **Automatic collection and the on-page status pill.** Collecting now runs only when you
+  press **Collect** in the popup — nothing collects or pops up on its own. (Removed the
+  route-poll auto-collect, the background hourly top-up, and the `alarms` permission.)
+- All `console` logging from the extension's runtime, so the page and service-worker
+  consoles stay clean.
+
+### Fixed
+- Attach to x.com tabs that were already open when the extension loaded (via `scripting`),
+  without a disruptive full reload — fixes capture failing on a fresh install.
+- Injected scripts are now idempotent, so double-injection can't duplicate listeners.
+
 ## [1.0.1] — 2026-06-27
 
 ### Added

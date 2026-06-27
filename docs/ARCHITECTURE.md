@@ -20,32 +20,28 @@ across worlds:
                                                       └───────────┘
 ```
 
-Why three contexts? Because capturing X's authenticated requests requires running in the
-**page's own JavaScript world** (to wrap its `window.fetch`), but talking to the
-extension's storage requires the **isolated content-script world** (only it has
-`chrome.*`). They're bridged with `window.postMessage`.
+Why these contexts? The **request recipe** is learned in the background via `webRequest`
+(network-layer, read-only) — the reliable path that doesn't depend on page internals.
+**Replay** then runs in the **page's own JavaScript world** (`page-hook.js`), because it
+must reuse the page's logged-in session via the native `fetch`. Talking to the extension's
+storage needs the **isolated content-script world** (only it has `chrome.*`). The page's
+two worlds are bridged with `window.postMessage`.
 
 ## The contexts
 
 ### `src/page-hook.js` — page MAIN world, `document_start`
 
-Runs in the page's own JS context so it can see X's network calls.
+Runs in the page's own JS context so it can replay X's calls with the page's session.
 
-- Wraps `window.fetch` **and** `XMLHttpRequest` (X uses either).
-- For each GraphQL request, `classify()`s the operation name.
-- For a **bookmarks/likes GET read** it:
-  - `captureTemplate()` — records the endpoint id, headers, variables, and feature flags.
-  - posts to the content script: `CAPTURED`, `TEMPLATE` (to persist), `STATUS`,
-    `SOURCE_SEEN` (the user is on that page → trigger auto-collect).
-  - harvests any tweets in the response (`HARVEST`).
 - Owns the **replay engine** `runSync(kind, maxPages, requestId, fallback, knownIds)`: on
   a `SYNC` command it replays the saved template with a pagination cursor, posting `PAGE`
-  per page and `SYNC_DONE` / `SYNC_ERROR`.
-- **Replay uses the saved native `origFetch`**, so it bypasses the patch and never
-  re-triggers capture/harvest.
+  per page and `SYNC_DONE` / `SYNC_ERROR`. **Replay uses the saved native `origFetch`**, so
+  it reuses the page's logged-in session and never re-triggers capture.
+- Also wraps `window.fetch` **and** `XMLHttpRequest` as a *secondary* capture path
+  (`classify()` → `captureTemplate()` → `TEMPLATE`/`HARVEST`). The *primary* capture is
+  `webRequest` in the background (below), so this is belt-and-braces.
+- Idempotent: guards `window.__ENCORE_PAGE_HOOK__` so a double injection can't double-wrap.
 - Uses **no `chrome.*` APIs** — it's immune to "Extension context invalidated".
-- Emits `[Encore] …` `console.info` breadcrumbs (op classifications, install line) — your
-  main debugging window.
 
 ### `src/content.js` — ISOLATED world, `document_start`
 
@@ -56,25 +52,28 @@ Runs in the page's own JS context so it can see X's network calls.
   in `buildCard()` (tweet text never via `innerHTML`). `themeVars()` pins X's exact
   per-theme grays. An `IntersectionObserver` plays the like/save burst animation.
   `openInApp()` does same-tab in-app navigation.
-- **Collect orchestration.** `pageSync()` (RPC to the page hook), `runSync()` (manual
-  collect, incremental, reports progress), `collectKind()` (silent incremental collect of
-  one source, returns `{added,total}`), `runTopup()`, `kickCollect()` (debounced
-  auto-collect + on-page toast), `autoCollectForRoute()` + `routeKind()` + the **route
-  poll** (`setInterval(onRoute,700)`), and the `SOURCE_SEEN` handler.
-- **`toast()`** — the on-page status pill (`#xhm-toast`).
+- **Collect orchestration.** `pageSync()` (RPC to the page hook) and `runSync()` (the
+  manual collect the popup triggers — incremental, reports progress). A 700 ms route poll
+  (`onRoute`) only resets the Home weaving cadence. Collection is **manual-only**: there is
+  no auto-collect, top-up, or on-page toast.
+- Idempotent: guards `window.__ENCORE_CONTENT__` against double injection.
 
 ### `src/background.js` — service worker
 
 The single source of truth. Owns the IndexedDB `tweets` store (extension origin, private).
 
-- Message handlers: `STORE_TWEETS` (upsert; merges `sources` so a post saved in both shows
-  correctly), `GET_MIX_BATCH` (reservoir-samples a fresh mix), `GET_STATE`, `SET_SETTINGS`,
-  `START_SYNC`/`startSync` (the visible "Collect" the popup uses — drives a logged-in tab),
-  `SYNC_COMPLETE`/`SYNC_FAILED`/`finishSync`, `GET_TEMPLATES`/`STORE_TEMPLATE`,
-  `GET_KNOWN_IDS`/`knownIds`, `CAPTURE_STATUS` (sets `meta.captured`), `CLEAR_ARCHIVE`,
-  `MAYBE_TOPUP`/`maybeTopup` (debounced background top-up).
-- `chrome.alarms` hourly top-up; `onInstalled` reloads open x.com tabs; toolbar badge =
-  archive count.
+- **Primary request capture.** A read-only `webRequest` listener (`onBeforeRequest` +
+  `onSendHeaders`) watches X's `/i/api/graphql/*` GET reads, `classifyOp()`s them, and
+  persists a replayable template via `storeTemplate` — the reliable, cross-browser capture
+  path, independent of any page-side hook.
+- **Existing-tab injection.** `injectIntoOpenTabs()` uses `chrome.scripting` to attach both
+  worlds to x.com tabs that were already open (on install / startup / worker wake), so a
+  tab open before the extension loaded still works — no forced reload.
+- Message handlers: `STORE_TWEETS` (upsert; merges `sources`), `GET_MIX_BATCH` (reservoir
+  sample), `GET_STATE`, `SET_SETTINGS`, `START_SYNC`/`startSync` (the "Collect" the popup
+  uses — drives a logged-in tab), `SYNC_COMPLETE`/`SYNC_FAILED`/`finishSync`,
+  `GET_TEMPLATES`/`STORE_TEMPLATE`, `GET_KNOWN_IDS`/`knownIds`, `CAPTURE_STATUS`,
+  `CLEAR_ARCHIVE`. Toolbar badge = archive count.
 
 ### `src/popup/`
 
@@ -85,15 +84,15 @@ as a plain HTML page.
 ## Data flows
 
 **Capture / "teach" (first-run).** User opens Bookmarks/Likes → X fetches that timeline →
-page-hook patch sees a GET that `classify()`s to bookmarks/likes → `captureTemplate` →
-`TEMPLATE` → content → `STORE_TEMPLATE` → background persists to
-`chrome.storage.local.templates`. Also `HARVEST` → `STORE_TWEETS` → upsert. Also
-`SOURCE_SEEN` → `kickCollect` → `collectKind` (incremental) → toast.
+the background `webRequest` listener sees the GET, `classifyOp()`s it to bookmarks/likes,
+and persists the template to `chrome.storage.local.templates`. (The page-hook fetch/XHR
+patch is a secondary path to the same `STORE_TEMPLATE`, plus `HARVEST` → `STORE_TWEETS`.)
 
-**Collect (button or auto).** `START_SYNC` / `kickCollect` → `pageSync` sends `SYNC` (with
-the persisted template + `knownIds`) → page-hook `runSync` replays paginated → `PAGE`
-events → content `STORE_TWEETS` → upsert. **Incremental:** stops as soon as a whole page
-is already in `knownIds` (newest-first ⇒ caught up). Empty archive ⇒ full walk.
+**Collect (popup button).** `START_SYNC` → `startSync` messages a logged-in tab `RUN_SYNC`
+→ content `runSync` → `pageSync` sends `SYNC` (with the persisted template + `knownIds`) →
+page-hook `runSync` replays paginated → `PAGE` events → content `STORE_TWEETS` → upsert.
+**Incremental:** stops as soon as a whole page is already in `knownIds` (newest-first ⇒
+caught up). Empty archive ⇒ full walk.
 
 **Weave (feed injection).** content `MutationObserver` → `considerCell` (every Nth real
 tweet) → `injectInto` → `GET_MIX_BATCH` → `buildCard` appended **inside** the host
@@ -125,12 +124,13 @@ tweet) → `injectInto` → `GET_MIX_BATCH` → `buildCard` appended **inside** 
   "You reposted" row — no Encore branding on the post.
 - **Incremental collect** with a forced-full escape hatch (Empty the library, then
   Collect — an empty archive does a full walk).
-- **Auto-collect on the source page**, two triggers → debounced `kickCollect`:
-  1. *Primary:* page hook posts `SOURCE_SEEN` when it sees X fetch that source.
-  2. *Secondary:* a 700 ms route poll.
-- **Visible toast.** With a complete archive, auto-collect is silent and adds nothing, so
-  it *feels* like nothing happens. The pill ("Checking your bookmarks…" → "up to date" /
-  "Added N new") makes each firing tangible. Shown only on the `kickCollect` path.
+- **Capture at the network layer.** Learning the request recipe via `webRequest` in the
+  background is immune to page CSP, injection timing, and which thread X uses — the
+  page-side `fetch`/XHR hook is kept only as a secondary path. `classifyOp()` mirrors the
+  page hook's `classify()` (same `folder` / `liker` / GET-only guards).
+- **Manual-only collection.** Collecting runs solely from the popup's Collect buttons —
+  no route-poll auto-collect, no background top-up, no on-page toast — so behavior is
+  predictable and nothing surprises the user.
 
 ## Gotchas (these will bite you)
 
@@ -144,8 +144,10 @@ tweet) → `injectInto` → `GET_MIX_BATCH` → `buildCard` appended **inside** 
   guards the call and goes quiet on first loss. This happens in production too (Chrome
   auto-updates), not just dev reloads.
 - **Content scripts only inject into pages loaded *after* the extension is enabled.** A
-  tab that was already open captures nothing until it reloads — which is why `onInstalled`
-  reloads open x.com tabs.
+  tab that was already open gets nothing until it reloads — which is why the background
+  calls `injectIntoOpenTabs()` (`chrome.scripting`) on install / startup / worker wake to
+  attach both worlds to already-open x.com tabs. (Capture itself doesn't depend on this —
+  `webRequest` sees the request regardless.)
 - **`requestAnimationFrame` is paused on hidden/unfocused tabs** — count-up animations can
   look frozen during headless verification; not a real bug.
 
@@ -156,8 +158,9 @@ tweet) → `injectInto` → `GET_MIX_BATCH` → `buildCard` appended **inside** 
   `src/mixer.css` and renders `buildCard()`'s markup, served over `http://` (file:// is
   blocked by drivers). The real TwitterChirp font only exists on x.com — judge layout, not
   the font.
-- **Capture/collect** needs a logged-in X session; lean on the `[Encore]` console
-  breadcrumbs.
+- **Capture/collect** needs a logged-in X session. Verify capture from the service-worker
+  console: a template appears in `chrome.storage.local.templates` once you visit your
+  Bookmarks/Likes page. (Runtime `console` logging was removed, so the consoles stay clean.)
 
 ## Vocabulary
 

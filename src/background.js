@@ -206,6 +206,32 @@ function broadcastToPopup(msg) {
   chrome.runtime.sendMessage(msg).catch(() => {});
 }
 
+// --------------------------- script injection ------------------------------
+// Manifest content scripts only attach to pages loaded *after* the extension is
+// enabled. A tab that was already open — the classic "I installed it while X was
+// open" case — would capture nothing until a manual refresh, the #1 first-run
+// failure. So whenever we (re)start, we programmatically inject both worlds into
+// every open X tab. Injection is idempotent (each script guards against running
+// twice) and non-disruptive (no forced reload). The request recipe itself is
+// learned at the network layer (see request capture below), so capture doesn't
+// depend on this injection succeeding.
+async function injectIntoTab(tabId) {
+  const run = (file, world) =>
+    chrome.scripting
+      .executeScript({ target: { tabId }, files: [file], world, injectImmediately: true })
+      .catch(() => {});
+  await run("src/page-hook.js", "MAIN");
+  await run("src/content.js", "ISOLATED");
+  chrome.scripting.insertCSS({ target: { tabId }, files: ["src/mixer.css"] }).catch(() => {});
+}
+async function injectIntoOpenTabs() {
+  if (!chrome.scripting) return; // very old browser — manifest scripts still apply
+  try {
+    const tabs = await xTabs();
+    for (const t of tabs) injectIntoTab(t.id);
+  } catch (_) {}
+}
+
 // --------------------------- sync orchestration ----------------------------
 let syncState = { active: false, kind: null, phase: null, total: 0 };
 
@@ -237,32 +263,6 @@ async function finishSync(result) {
   broadcastToPopup({ type: "SYNC_DONE", result, stats });
 }
 
-// --------------------------- background top-up -----------------------------
-// "Fully automatic" mode: quietly archive newly-saved posts. Fires when an
-// x.com tab boots (MAYBE_TOPUP) and on an hourly alarm, debounced so it runs at
-// most once per TOPUP_MIN_MS. Needs an open x.com tab (it borrows the live
-// session through the content script) and a learned template — otherwise it
-// simply no-ops and tries again next time. Never blocks a manual sync.
-const TOPUP_MIN_MS = 30 * 60 * 1000; // at most once per 30 minutes
-let topupLockMem = 0; // in-memory guard for this worker's lifetime
-
-async function maybeTopup(preferTabId) {
-  const now = Date.now();
-  if (syncState.active) return;
-  if (now - topupLockMem < TOPUP_MIN_MS) return;
-  const meta = await getMeta();
-  if (now - (meta.lastTopup || 0) < TOPUP_MIN_MS) return;
-  const tabs = await xTabs();
-  if (!tabs.length) return; // no logged-in tab to borrow — skip this round
-  topupLockMem = now;
-  await setMeta({ lastTopup: now });
-  const tab =
-    (preferTabId && tabs.find((t) => t.id === preferTabId)) ||
-    tabs.find((t) => t.active) ||
-    tabs[0];
-  chrome.tabs.sendMessage(tab.id, { type: "RUN_TOPUP" }).catch(() => {});
-}
-
 // --------------------------- request templates -----------------------------
 // Persisted so a fresh session can collect without re-visiting Bookmarks/Likes.
 async function getTemplates() {
@@ -276,6 +276,81 @@ async function storeTemplate(kind, template) {
   const m = await getMeta();
   await setMeta({ captured: { ...(m.captured || {}), [kind]: true } });
 }
+
+// ---------------------- request capture (network layer) --------------------
+// The reliable way to learn X's Bookmarks/Likes request: observe it at the
+// browser's network layer from the background, independent of any page-side
+// fetch hook. The page hook can silently miss the request — X may fire it from
+// a worker, the page's CSP can interfere, or it can load before injection. This
+// listener can't: it sees every request the tab makes. We read the URL + the
+// auth headers X already sends and persist them as a replayable template.
+// Nothing is modified or blocked — this is read-only observation.
+const CAP_GQL_RE = /\/i\/api\/graphql\/[^/]+\/([^/?]+)/;
+
+function classifyOp(opName) {
+  const n = (opName || "").toLowerCase();
+  if (n.includes("folder")) return null; // folder lists carry no timeline
+  if (n.includes("bookmark")) return "bookmarks";
+  if (n.includes("like") && !n.includes("liker") && !n.includes("dislike") && !n.includes("unlike"))
+    return "likes";
+  return null;
+}
+
+function templateFromRequest(kind, url, headers) {
+  const u = new URL(url);
+  let variables = {};
+  let features = {};
+  let fieldToggles = null;
+  try { variables = JSON.parse(u.searchParams.get("variables") || "{}"); } catch (_) {}
+  try { features = JSON.parse(u.searchParams.get("features") || "{}"); } catch (_) {}
+  if (u.searchParams.get("fieldToggles")) fieldToggles = u.searchParams.get("fieldToggles");
+  return {
+    kind,
+    base: u.origin + u.pathname, // /i/api/graphql/<qid>/<Op>
+    headers,
+    variables,
+    features,
+    fieldToggles,
+    userId: variables.userId || null,
+  };
+}
+
+// onBeforeRequest gives us the URL; onSendHeaders (a moment later) gives us the
+// headers for that same request id. We stitch the two together.
+const capPending = new Map(); // requestId -> kind
+function setupRequestCapture() {
+  if (!chrome.webRequest) return; // not a Chromium build with webRequest — page hook still applies
+  const urls = ["https://x.com/i/api/graphql/*", "https://twitter.com/i/api/graphql/*"];
+  chrome.webRequest.onBeforeRequest.addListener(
+    (d) => {
+      if (d.method !== "GET") return; // reads only; bookmark/unbookmark are POSTs
+      const m = d.url.match(CAP_GQL_RE);
+      if (!m) return;
+      const kind = classifyOp(m[1]);
+      if (kind) capPending.set(d.requestId, kind);
+    },
+    { urls }
+  );
+  chrome.webRequest.onSendHeaders.addListener(
+    (d) => {
+      const kind = capPending.get(d.requestId);
+      if (!kind) return;
+      capPending.delete(d.requestId);
+      const headers = {};
+      for (const h of d.requestHeaders || []) {
+        const name = h.name.toLowerCase();
+        if (name === "cookie") continue; // the browser re-attaches this on replay
+        headers[name] = h.value;
+      }
+      // Need at least the bearer token to be worth replaying.
+      if (!headers["authorization"]) return;
+      storeTemplate(kind, templateFromRequest(kind, d.url, headers)).catch(() => {});
+    },
+    { urls },
+    ["requestHeaders", "extraHeaders"]
+  );
+}
+setupRequestCapture();
 
 // ------------------------------ messages -----------------------------------
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -321,11 +396,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       }
       case "START_SYNC": {
         sendResponse(await startSync(msg.kind));
-        break;
-      }
-      case "MAYBE_TOPUP": {
-        maybeTopup(_sender && _sender.tab && _sender.tab.id);
-        sendResponse({ ok: true });
         break;
       }
       case "STORE_TWEETS": {
@@ -379,25 +449,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   return true; // async response
 });
 
-chrome.runtime.onInstalled.addListener((details) => {
+chrome.runtime.onInstalled.addListener(() => {
   refreshBadge();
-  // Content scripts only inject into pages loaded AFTER the extension is enabled.
-  // On (re)install/update, reload any open x.com tabs so the capture hook is
-  // active immediately — otherwise a tab that was already open captures nothing
-  // until the user manually refreshes (the #1 first-run gotcha, esp. on a fresh
-  // machine where the extension is loaded with x.com already open).
-  if (details && (details.reason === "install" || details.reason === "update")) {
-    xTabs()
-      .then((tabs) => tabs.forEach((t) => { try { chrome.tabs.reload(t.id); } catch (_) {} }))
-      .catch(() => {});
-  }
+  // Reach back into any X tab that was already open when we were installed/
+  // updated and attach the capture hook now, without reloading it out from
+  // under the user. This is the #1 first-run gotcha on a fresh machine.
+  injectIntoOpenTabs();
 });
-chrome.runtime.onStartup.addListener(() => refreshBadge());
+chrome.runtime.onStartup.addListener(() => {
+  refreshBadge();
+  injectIntoOpenTabs();
+});
 refreshBadge();
-
-// Hourly nudge so long-lived sessions keep topping up without needing a reload.
-// (create is idempotent by name; the alarm survives worker restarts.)
-chrome.alarms.create("encore-topup", { periodInMinutes: 60 });
-chrome.alarms.onAlarm.addListener((a) => {
-  if (a.name === "encore-topup") maybeTopup();
-});
+// Worker (re)start — also covers the user enabling the extension with X already
+// open. Runs once per worker lifetime; re-injection is a guarded no-op.
+injectIntoOpenTabs();

@@ -16,6 +16,12 @@
 (() => {
   "use strict";
 
+  // Installed once per tab. Like the page hook, we can be injected twice (once
+  // by the manifest, once by the worker into an already-open tab) — bail on the
+  // second so we don't register duplicate listeners or run two weavers.
+  if (window.__ENCORE_CONTENT__) return;
+  window.__ENCORE_CONTENT__ = true;
+
   const PAGE = "xhm-page";
   const CONTENT = "xhm-content";
 
@@ -58,25 +64,6 @@
     try { clearInterval(routePoll); } catch (_) {}
     try { observer.disconnect(); } catch (_) {}
     try { animObserver.disconnect(); } catch (_) {}
-    try {
-      console.info("[Encore] extension was reloaded — refresh this tab to reconnect.");
-    } catch (_) {}
-  }
-
-  // A small on-page status pill so auto-collect is *visible* without opening the
-  // popup ("Checking your bookmarks…" → "Up to date" / "Added 2 new").
-  let toastTimer = null;
-  function toast(text) {
-    let el = document.getElementById("xhm-toast");
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "xhm-toast";
-      (document.body || document.documentElement).appendChild(el);
-    }
-    el.textContent = "Encore · " + text;
-    el.classList.add("xhm-toast-show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove("xhm-toast-show"), 4000);
   }
 
   // RPC wrapper around the page hook's paginated sync.
@@ -137,89 +124,11 @@
     else bg({ type: "SYNC_FAILED", kind, error: lastErr });
   }
 
-  // One incremental collect of a single source: replays the saved request but
-  // stops the moment it reaches posts already in the archive, so it only fetches
-  // what's new. Guarded so a source can't collect twice at once (auto-on-page +
-  // top-up). Returns { added, total } (or { error }) so the caller can surface it.
-  const inFlight = new Set();
-  async function collectKind(kind, maxPages) {
-    if (inFlight.has(kind)) return null;
-    inFlight.add(kind);
-    try {
-      let saved = {};
-      let known = [];
-      try {
-        saved = (await bg({ type: "GET_TEMPLATES" })) || {};
-      } catch (_) {}
-      try {
-        known = (await bg({ type: "GET_KNOWN_IDS", source: kind })) || [];
-      } catch (_) {}
-      const before = known.length;
-      const r = await pageSync(kind, maxPages, saved[kind], true, known);
-      let total = before;
-      try {
-        total = ((await bg({ type: "GET_KNOWN_IDS", source: kind })) || []).length;
-      } catch (_) {}
-      const added = Math.max(0, total - before);
-      try {
-        console.info("[Encore]", kind, "collect: fetched", r.total, "· added", added, "· total", total);
-      } catch (_) {}
-      return { added, total };
-    } catch (e) {
-      // not taught yet, or X hiccuped — try again next tick
-      try {
-        console.warn("[Encore]", kind, "collect skipped —", (e && e.message) || e);
-      } catch (_) {}
-      return { error: (e && e.message) || String(e) };
-    } finally {
-      inFlight.delete(kind);
-      refill();
-    }
-  }
-
-  let topupRunning = false;
-  async function runTopup() {
-    if (topupRunning) return;
-    topupRunning = true;
-    try {
-      for (const kind of ["bookmarks", "likes"]) await collectKind(kind, 3);
-    } finally {
-      topupRunning = false;
-    }
-  }
-
-  // When the user lands on their own Bookmarks or Likes page, kick off an
-  // incremental collect of that source automatically (debounced per source).
-  const autoAt = { bookmarks: 0, likes: 0 };
-  function routeKind(p) {
-    if (/^\/i\/bookmarks/.test(p)) return "bookmarks";
-    if (/^\/[^/]+\/likes\/?$/.test(p)) return "likes";
-    return null;
-  }
-  // Start an incremental collect of a source, debounced so the many requests X
-  // fires while you sit on a page only kick off one collect. Two callers: the
-  // page hook seeing X fetch that source (reliable), and the route poll.
-  function kickCollect(kind) {
-    if (!kind) return;
-    const now = Date.now();
-    if (now - autoAt[kind] < 2 * 60 * 1000) return; // at most once / 2 min / source
-    autoAt[kind] = now;
-    const noun = kind === "bookmarks" ? "bookmarks" : "likes";
-    try {
-      console.info("[Encore] on your", kind, "page — auto-collecting new ones…");
-    } catch (_) {}
-    toast("Checking your " + noun + "…");
-    collectKind(kind, 40).then((res) => {
-      if (!res) return;
-      if (res.error) toast("Couldn't reach X — will retry");
-      else if (res.added > 0)
-        toast("Added " + res.added + " new " + (res.added === 1 ? noun.slice(0, -1) : noun));
-      else toast("Your " + noun + " are up to date");
-    });
-  }
-  function autoCollectForRoute() {
-    kickCollect(routeKind(location.pathname));
-  }
+  // Collection is manual-only: the user runs it from the popup (RUN_SYNC).
+  // Request recipes are still learned passively in the background — see the
+  // webRequest capture in background.js — so the popup's collect just works
+  // once you've visited your Bookmarks/Likes page. Nothing collects or pops up
+  // on its own.
 
   // Messages coming up from the page hook.
   window.addEventListener("message", (ev) => {
@@ -232,17 +141,12 @@
       bg({ type: "CAPTURE_STATUS", captured: d.captured, userId: d.userId });
     } else if (d.type === "TEMPLATE") {
       bg({ type: "STORE_TEMPLATE", kind: d.kind, template: d.template });
-    } else if (d.type === "SOURCE_SEEN") {
-      // X just fetched the user's bookmarks/likes — they're on that page, so
-      // kick off an incremental collect. The most reliable trigger we have.
-      kickCollect(d.kind);
     }
   });
 
   // Commands coming down from the background / popup.
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === "RUN_SYNC") runSync(msg.kind, msg.maxPages);
-    else if (msg.type === "RUN_TOPUP") runTopup();
     else if (msg.type === "SETTINGS_CHANGED") {
       settings = { ...settings, ...msg.settings };
       if (!settings.mixEnabled) removeAllCards();
@@ -566,7 +470,7 @@
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
-  // SPA route changes: reset home cadence and kick off Bookmarks/Likes auto-collect.
+  // SPA route changes: reset the home weaving cadence when we land on Home.
   let lastPath = location.pathname;
   function onRoute() {
     if (location.pathname === lastPath) return;
@@ -575,13 +479,10 @@
       tweetOrdinal = 0;
       refill();
     }
-    autoCollectForRoute();
   }
-  // A content script runs in an isolated world, so patching the page's
-  // history.pushState here would NOT catch X's own SPA navigations (its
-  // function reference is separate from ours). Poll the path instead — this is
-  // what makes auto-collect fire when you click through to Bookmarks/Likes, not
-  // just on a full page load. popstate still covers Back/Forward.
+  // A content script runs in an isolated world, so we poll the path to notice
+  // X's own SPA navigations (its history reference is separate from ours).
+  // popstate still covers Back/Forward.
   routePoll = setInterval(onRoute, 700);
   window.addEventListener("popstate", onRoute);
 
@@ -593,9 +494,5 @@
     } catch (_) {}
     refill();
     toPage({ type: "PING" });
-    // Ask the worker whether it's time to silently pull in new saves/likes.
-    bg({ type: "MAYBE_TOPUP" });
-    // If we booted straight onto Bookmarks/Likes, start collecting that source.
-    autoCollectForRoute();
   })();
 })();
