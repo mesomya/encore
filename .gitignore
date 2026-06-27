@@ -1,0 +1,21 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*~
+*.swp
+
+# Dependencies / build output
+node_modules/
+/dist/
+*.zip
+
+# Secrets — never commit
+.env
+.env.*
+*.local
+
+# Local-only artifacts (not part of the project)
+encore-chat-recovered.md

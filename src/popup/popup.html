@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Encore</title>
+  </head>
+  <body>
+    <div class="app">
+      <header class="hdr">
+        <div class="brand">
+          <span class="logo" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="21 4 21 10 15 10" />
+              <path d="M20.4 15a8.5 8.5 0 1 1-2-8.9L21 10" />
+            </svg>
+          </span>
+          <div class="brand-text">
+            <h1>Encore</h1>
+            <p class="status" id="status">Loading…</p>
+          </div>
+        </div>
+        <button class="icon-btn" id="advToggle" aria-label="Options" title="Options">
+          <svg
+            viewBox="0 0 24 24"
+            width="19"
+            height="19"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <line x1="4" y1="8" x2="20" y2="8" />
+            <line x1="4" y1="16" x2="20" y2="16" />
+            <circle cx="9" cy="8" r="2.6" fill="var(--bg)" />
+            <circle cx="15" cy="16" r="2.6" fill="var(--bg)" />
+          </svg>
+        </button>
+      </header>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-n" data-key="total" data-val="0">0</span>
+          <span class="stat-l">Collected</span>
+        </div>
+        <div class="stat">
+          <span class="stat-n" data-key="likes" data-val="0">0</span>
+          <span class="stat-l">Liked</span>
+        </div>
+        <div class="stat">
+          <span class="stat-n" data-key="bookmarks" data-val="0">0</span>
+          <span class="stat-l">Saved</span>
+        </div>
+      </div>
+
+      <div class="progress" id="progress" hidden><div class="bar" id="bar"></div></div>
+
+      <div class="controls">
+        <div class="row">
+          <label for="mix">Replay in my feed</label>
+          <button role="switch" class="switch" id="mix" aria-checked="true">
+            <span class="knob"></span>
+          </button>
+        </div>
+        <div class="row">
+          <label for="every">Spacing</label>
+          <div class="num">
+            <input id="every" type="number" min="1" max="50" inputmode="numeric" />
+            <span class="num-suf">posts apart</span>
+          </div>
+        </div>
+        <div class="row">
+          <label for="pages">Depth</label>
+          <div class="num">
+            <input id="pages" type="number" min="1" max="500" inputmode="numeric" />
+            <span class="num-suf">pages</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="syncBoth">Collect everything</button>
+        <div class="btn-pair">
+          <button class="btn btn-dark" id="syncLikes">Likes only</button>
+          <button class="btn btn-dark" id="syncBookmarks">Saves only</button>
+        </div>
+        <button class="btn btn-ghost" id="clear">Empty the library</button>
+      </div>
+
+      <section class="advanced" id="advanced" hidden>
+        <div class="adv-block">
+          <span class="adv-title">Bring back</span>
+          <div class="checks">
+            <label class="check">
+              <input type="checkbox" id="srcLikes" checked />
+              <span class="check-box"></span>
+              <span>Liked posts</span>
+            </label>
+            <label class="check">
+              <input type="checkbox" id="srcBookmarks" checked />
+              <span class="check-box"></span>
+              <span>Saved posts</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="row compact">
+          <label for="dedupe">No repeats per visit</label>
+          <button role="switch" class="switch" id="dedupe" aria-checked="true">
+            <span class="knob"></span>
+          </button>
+        </div>
+
+        <div class="adv-block">
+          <span class="adv-title">Appearance</span>
+          <div class="seg" id="themeSeg" role="tablist">
+            <button data-theme-val="auto" class="active">System</button>
+            <button data-theme-val="light">Light</button>
+            <button data-theme-val="dark">Dark</button>
+          </div>
+        </div>
+      </section>
+
+      <p class="hint" id="hint" hidden></p>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

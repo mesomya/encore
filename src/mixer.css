@@ -1,0 +1,329 @@
+/* Cards woven into the X timeline.
+ *
+ * Goal: indistinguishable from a native post. We set NO font-family and let it
+ * inherit X's (TwitterChirp), keep X's text size (15px/20px) and color
+ * (currentColor), and match X's spacing. The only addition is a small
+ * "You bookmarked this" line, styled like X's own "You reposted" context row. */
+
+.xhm-card {
+  --xhm-muted: color-mix(in srgb, currentColor 56%, transparent);
+  --xhm-border: color-mix(in srgb, currentColor 15%, transparent);
+  --xhm-faint: color-mix(in srgb, currentColor 6%, transparent);
+
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px 16px;
+  /* A divider line *after* the post, like every native X cell. The post above
+     (X's own article) already supplies the line above us. */
+  border-bottom: 1px solid var(--xhm-border);
+  color: inherit;
+  /* X's exact font stack. TwitterChirp is already loaded on the page, so this
+     renders in the real font instead of whatever the host cell inherits. */
+  font-family: TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  cursor: pointer;
+}
+.xhm-card * {
+  box-sizing: border-box;
+}
+.xhm-card:hover {
+  background: var(--xhm-faint);
+}
+
+/* "You bookmarked this" — mirrors X's social-context row */
+.xhm-context {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.xhm-context-icon {
+  width: 40px;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  color: var(--xhm-muted);
+}
+.xhm-context-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+.xhm-context-label {
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 700;
+  color: var(--xhm-muted);
+}
+
+/* avatar + content column */
+.xhm-row {
+  display: flex;
+  gap: 12px;
+}
+.xhm-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  flex: 0 0 auto;
+  object-fit: cover;
+}
+.xhm-avatar-empty {
+  background: var(--xhm-border);
+}
+.xhm-col {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* header, single line — name truncates like X, handle/date hold */
+.xhm-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.xhm-name {
+  font-weight: 700;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xhm-verified {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.xhm-verified svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+}
+.xhm-handle,
+.xhm-sep,
+.xhm-date {
+  color: var(--xhm-muted);
+  flex: 0 0 auto;
+}
+
+/* body */
+.xhm-text {
+  margin-top: 2px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+.xhm-media {
+  margin-top: 12px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--xhm-border);
+}
+.xhm-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 510px;
+  object-fit: cover;
+}
+
+/* action bar — X glyphs, gray. Four metrics spread within X's ~425px on the
+   left; bookmark + share pushed to the far right of the column. */
+.xhm-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  color: var(--xhm-muted);
+}
+.xhm-actions-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1 1 auto;
+  max-width: 425px;
+}
+.xhm-actions-end {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 12px;
+}
+.xhm-act {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 400;
+}
+.xhm-act-ic {
+  display: inline-flex;
+}
+.xhm-act-ic svg {
+  width: 18.75px;
+  height: 18.75px;
+  fill: currentColor;
+}
+
+/* Filled action states — native X colors. The icon (fill: currentColor) and
+   its count both pick this up. */
+.xhm-act.is-liked {
+  color: rgb(249, 24, 128);
+}
+.xhm-act.is-bookmarked {
+  color: rgb(29, 155, 240);
+}
+
+/* -------- "You liked this / saved this" burst -----------------------------
+   The context icon starts as a gray outline, then on scroll-into-view it pops
+   to the filled color with an expanding ring + radiating dots — X's like feel.
+   For a saved post (.is-save) the same motion plays in bookmark blue. */
+.xhm-ctx-anim {
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+.xhm-ctx-anim svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+.xhm-ctx-outline {
+  fill: var(--xhm-muted);
+}
+.xhm-ctx-fill {
+  fill: rgb(249, 24, 128);
+  opacity: 0;
+  transform: scale(0);
+  transform-origin: 50% 50%;
+}
+.xhm-ctx-anim.is-save .xhm-ctx-fill {
+  fill: rgb(29, 155, 240);
+}
+.xhm-ctx-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  border: 2px solid rgb(249, 24, 128);
+  opacity: 0;
+  transform: scale(0);
+  pointer-events: none;
+}
+.xhm-ctx-anim.is-save .xhm-ctx-ring {
+  border-color: rgb(29, 155, 240);
+}
+.xhm-ctx-particles {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.xhm-ctx-particles i {
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgb(249, 24, 128);
+  opacity: 0;
+  transform: rotate(var(--a)) translateY(0) scale(0);
+}
+.xhm-ctx-anim.is-save .xhm-ctx-particles i {
+  background: rgb(29, 155, 240);
+}
+
+.xhm-ctx-anim.play .xhm-ctx-outline {
+  animation: xhm-ctx-out 0.2s ease 0.12s forwards;
+}
+.xhm-ctx-anim.play .xhm-ctx-fill {
+  animation: xhm-ctx-pop 0.6s cubic-bezier(0.17, 0.89, 0.32, 1.28) 0.12s forwards;
+}
+.xhm-ctx-anim.play .xhm-ctx-ring {
+  animation: xhm-ctx-ring 0.55s ease-out 0.12s forwards;
+}
+.xhm-ctx-anim.play .xhm-ctx-particles i {
+  animation: xhm-ctx-part 0.55s ease-out 0.12s forwards;
+}
+
+@keyframes xhm-ctx-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes xhm-ctx-pop {
+  0% { opacity: 1; transform: scale(0); }
+  45% { transform: scale(1.3); }
+  72% { transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes xhm-ctx-ring {
+  0% { opacity: 0.65; transform: scale(0.2); }
+  100% { opacity: 0; transform: scale(2.2); }
+}
+@keyframes xhm-ctx-part {
+  0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(-12px) scale(0); }
+}
+
+/* Honor reduced-motion: no burst, just show the filled state. */
+@media (prefers-reduced-motion: reduce) {
+  .xhm-ctx-outline {
+    opacity: 0;
+  }
+  .xhm-ctx-fill {
+    opacity: 1;
+    transform: none;
+  }
+  .xhm-ctx-ring,
+  .xhm-ctx-particles {
+    display: none;
+  }
+  .xhm-ctx-anim.play .xhm-ctx-outline,
+  .xhm-ctx-anim.play .xhm-ctx-fill,
+  .xhm-ctx-anim.play .xhm-ctx-ring,
+  .xhm-ctx-anim.play .xhm-ctx-particles i {
+    animation: none;
+  }
+}
+
+/* Auto-collect status pill — brief, unobtrusive feedback that it fired, in
+   X-accent blue. Shows on the Bookmarks/Likes page when a collect runs. */
+#xhm-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(16px);
+  max-width: 90vw;
+  padding: 11px 18px;
+  border-radius: 9999px;
+  background: rgb(29, 155, 240);
+  color: #fff;
+  font-family: TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  z-index: 2147483647;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+#xhm-toast.xhm-toast-show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

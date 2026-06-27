@@ -1,0 +1,6 @@
+# Normalize text files to LF so the repo is consistent across Windows/macOS/Linux.
+* text=auto eol=lf
+
+# Binary assets — never touch.
+*.png binary
+*.zip binary
