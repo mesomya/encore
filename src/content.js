@@ -1,15 +1,15 @@
-/*
- * content.js  —  runs in the ISOLATED world on x.com.
+﻿/*
+ * content.js  â€”  runs in the ISOLATED world on x.com.
  *
  * Two jobs:
- *   1. Bridge — relay between the page hook (MAIN world) and the background
+ *   1. Bridge â€” relay between the page hook (MAIN world) and the background
  *      worker. Sync commands flow down; harvested tweets flow up.
- *   2. Weave — quietly drop archived posts into the home timeline as the user
+ *   2. Weave â€” quietly drop archived posts into the home timeline as the user
  *      scrolls, each tagged with where it came from.
  *
  * Injection note: X's timeline is a virtualized React list. Fighting it with
  * sibling cells loses (React recycles them). Instead we append our card *inside*
- * an existing tweet cell — X runs a ResizeObserver on each cell, so it measures
+ * an existing tweet cell â€” X runs a ResizeObserver on each cell, so it measures
  * the new height and repositions everything below it for us. When the host cell
  * scrolls off and unmounts, our card goes with it; scroll back and we re-weave.
  */
@@ -17,10 +17,10 @@
   "use strict";
 
   // Installed once per tab. Like the page hook, we can be injected twice (once
-  // by the manifest, once by the worker into an already-open tab) — bail on the
+  // by the manifest, once by the worker into an already-open tab) â€” bail on the
   // second so we don't register duplicate listeners or run two weavers.
-  if (window.__ENCORE_CONTENT__) return;
-  window.__ENCORE_CONTENT__ = true;
+  if (window.__REFEED_CONTENT__) return;
+  window.__REFEED_CONTENT__ = true;
 
   const PAGE = "xhm-page";
   const CONTENT = "xhm-content";
@@ -39,7 +39,7 @@
 
   // All background messaging funnels through here. chrome.runtime.sendMessage
   // throws *synchronously* ("Extension context invalidated") if the extension
-  // was reloaded/updated while this tab stayed open — a plain .catch() can't
+  // was reloaded/updated while this tab stayed open â€” a plain .catch() can't
   // stop that. We guard the call, and once the context is gone we go quiet until
   // the tab is refreshed (which injects a fresh, reconnected content script).
   let contextLost = false;
@@ -125,8 +125,8 @@
   }
 
   // Collection is manual-only: the user runs it from the popup (RUN_SYNC).
-  // Request recipes are still learned passively in the background — see the
-  // webRequest capture in background.js — so the popup's collect just works
+  // Request recipes are still learned passively in the background â€” see the
+  // webRequest capture in background.js â€” so the popup's collect just works
   // once you've visited your Bookmarks/Likes page. Nothing collects or pops up
   // on its own.
 
@@ -196,8 +196,8 @@
     return null;
   }
 
-  // Open a post the way X itself does — a client-side route change in the same
-  // tab — so pressing Back drops you straight back into the feed where you were
+  // Open a post the way X itself does â€” a client-side route change in the same
+  // tab â€” so pressing Back drops you straight back into the feed where you were
   // (X keeps the timeline mounted and the browser restores scroll). We push the
   // route and fire popstate, which X's router listens for. Falls back to a plain
   // same-tab load only if something throws.
@@ -231,7 +231,7 @@
     });
   }
 
-  // X's own action-bar / context glyphs (24×24), so the card's icons match natively.
+  // X's own action-bar / context glyphs (24Ã—24), so the card's icons match natively.
   const IC = {
     reply:
       "M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.37 2.77 6.08 6.138 6.01l.351-.01h1.761v2.3l5.087-2.81c1.951-1.08 3.163-3.13 3.163-5.36 0-3.39-2.744-6.13-6.129-6.13H9.756z",
@@ -247,7 +247,7 @@
   };
   const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"></path></svg>`;
 
-  // Filled (active) variants — solid heart / solid bookmark, shown when the
+  // Filled (active) variants â€” solid heart / solid bookmark, shown when the
   // post is one the user already liked / saved.
   const ICF = {
     like: "M20.884 13.19c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z",
@@ -315,7 +315,7 @@
       openInApp(t.url);
     });
 
-    // social-context line — mirrors X's own "You reposted" row (icon in the
+    // social-context line â€” mirrors X's own "You reposted" row (icon in the
     // avatar gutter, gray label aligned with the post body). The icon plays a
     // like/save "burst" when the card scrolls into view (see animObserver).
     const ctx = el("div", "xhm-context");
@@ -345,7 +345,7 @@
     }
     const col = el("div", "xhm-col");
 
-    // header on one line: Name ✓ @handle · date
+    // header on one line: Name âœ“ @handle Â· date
     const head = el("div", "xhm-head");
     head.appendChild(el("span", "xhm-name", t.user.name));
     if (t.user.verified) {
@@ -354,14 +354,14 @@
       head.appendChild(v);
     }
     head.appendChild(el("span", "xhm-handle", "@" + t.user.screen));
-    head.appendChild(el("span", "xhm-sep", "·"));
+    head.appendChild(el("span", "xhm-sep", "Â·"));
     head.appendChild(el("span", "xhm-date", fmtDate(t.createdAt)));
     col.appendChild(head);
 
     // body text
     if (t.text) col.appendChild(el("div", "xhm-text", t.text));
 
-    // media — first image (videos/gifs carry a poster image too)
+    // media â€” first image (videos/gifs carry a poster image too)
     const m = (t.media || [])[0];
     if (m && m.url) {
       const wrap = el("div", "xhm-media");
@@ -372,7 +372,7 @@
       col.appendChild(wrap);
     }
 
-    // action bar — X's own glyphs + the post's real counts. Four metrics on
+    // action bar â€” X's own glyphs + the post's real counts. Four metrics on
     // the left (spread within X's ~425px), bookmark + share pushed to far right.
     const acts = el("div", "xhm-actions");
     const act = (d, n, extra) => {
@@ -405,7 +405,7 @@
   }
 
   // Plays the like/save burst on a card's context icon when it scrolls into
-  // view, and re-arms it when the card leaves — X recycles cells as you scroll,
+  // view, and re-arms it when the card leaves â€” X recycles cells as you scroll,
   // so the little "liking it" moment naturally repeats through the feed.
   const animObserver = new IntersectionObserver(
     (entries) => {

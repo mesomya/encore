@@ -1,13 +1,12 @@
-<div align="center">
+﻿<div align="center">
 
-<img src="icons/icon-128.png" width="84" height="84" alt="Encore icon" />
+<img src="icons/icon-128.png" width="84" height="84" alt="Refeed icon" />
 
-# Encore
+# Refeed
 
-**Your liked and saved posts are the best feed you never scroll.**
+**Bring your saved X bookmarks back into your timeline.**
 
-Encore quietly brings them back around in your X timeline — each tagged so you know why
-it's there — and keeps a private, local archive of everything you've ever saved.
+Refeed collects your own X bookmarks into a private, on-device archive, then mixes those saved posts back into your Home timeline as you scroll. Liked posts are supported too, but bookmarks are the main idea: the posts you saved should not disappear into a list you never revisit.
 
 <p>
   <img alt="Manifest V3" src="https://img.shields.io/badge/Manifest-V3-1d9bf0" />
@@ -21,157 +20,81 @@ it's there — and keeps a private, local archive of everything you've ever save
 
 ---
 
-## See it in action
+## What It Does
 
-<div align="center">
-  <a href="https://github.com/mesomya/encore/blob/main/docs/encore-demo.mp4">
-    <img src="docs/demo-poster.jpg" width="820" alt="▶ Watch the Encore demo" />
-  </a>
-  <br />
-  <sub><b>▶ Watch the 1-minute demo</b> — collect your liked &amp; saved posts, then watch them resurface in your feed. <i>(Click to play on GitHub.)</i></sub>
-</div>
+You bookmark posts on X because you want to come back to them. Then they sit in Bookmarks, out of sight.
 
-<!--
-  Prefer an AUTOPLAYING inline player instead of click-to-play? The clip is only ~5 MB:
-  open a new Issue, drag docs/encore-demo.mp4 into it, copy the generated
-  https://github.com/user-attachments/assets/…  URL it produces, and paste that URL on
-  its own line just above this comment. GitHub then renders an inline autoplay player.
-  The poster above is the no-upload fallback.
--->
-
-## Screenshots
-
-| Popup | Dark | Options |
-| :---: | :---: | :---: |
-| <img src="docs/popup.png" width="240" alt="Encore popup" /> | <img src="docs/popup-dark.png" width="240" alt="Encore popup in dark mode" /> | <img src="docs/popup-options.png" width="240" alt="Encore options panel" /> |
-
-<div align="center">
-  <img src="docs/in-feed.png" width="780" alt="Resurfaced posts in the Home timeline" />
-  <br />
-  <sub>Resurfaced posts woven into Home (dark + light) — native styling, with a small "You liked this / You bookmarked this" line.</sub>
-</div>
-
-## Why
-
-You save and like posts you mean to come back to — and then never do. They sink into a
-list you forget exists. Encore turns that buried list into a gentle, ambient feed: as you
-scroll Home, it slips your own saved gems back in, spaced out, so they resurface naturally
-instead of rotting in a folder. And because it keeps a local copy, you build a private,
-searchable-by-you archive of everything you've found worth keeping.
+Refeed brings them back into the place you already scroll: your Home timeline. Run Collect from the popup, choose how often saved posts should appear, and Refeed quietly weaves them between normal posts. Each resurfaced post is tagged so you know why it appeared, with a link back to the original.
 
 ## Features
 
-- 🪄 **Resurfaces your own posts** into Home — every few real posts, one of yours slides
-  in, tagged **You liked this** / **You bookmarked this**.
-- 🎚 **In your control** — one master switch, plus **Spacing** (how often) and **Depth**
-  (how far back a collect walks). Bring back likes, saves, or both.
-- 🧲 **One-click collecting** — visit your Bookmarks or Likes page once so Encore learns
-  the request, then hit **Collect** in the popup. Re-run it anytime to pull in what's new.
-- 🎨 **Pixel-native** — inherits X's font, spacing, action bar, and theme (Default / Dim /
-  Lights-out), so resurfaced posts read as part of the timeline, not an overlay.
-- 🔒 **100% local** — a private IndexedDB archive on the extension's own origin. No
-  server, no account, no telemetry. Ever.
-- 🪶 **Tiny & dependency-free** — vanilla JS, Manifest V3, ~40 KB.
+- **Bookmark-first collecting** - collect your X bookmarks into a private local library.
+- **Timeline resurfacing** - saved posts appear back in Home as you scroll.
+- **Likes as an extra** - optionally collect liked posts too, if you want them included.
+- **Simple controls** - choose spacing, collection depth, sources, and appearance.
+- **Native feel** - resurfaced posts match X's spacing, typography, actions, and theme.
+- **Private by design** - no account, no server, no analytics, no tracking.
 
-## How it works
+## How It Works
 
-X's web app talks to a private GraphQL API using credentials only the page itself holds
-(a bearer token, the `ct0` CSRF token, a per-request transaction id). Rather than forge
-any of that, Encore **rides along with the requests X already makes:**
+X's web app already asks X for your Bookmarks and Likes when you open those pages. Refeed observes the shape of those requests on a read-only basis, then replays the same request when you click Collect so it can fetch your own saved posts.
 
-1. While you're on x.com, Encore observes — read-only, at the browser's network layer —
-   the calls X fires to load your **Bookmarks** and **Likes**, and **remembers each
-   request's shape**. It never blocks or modifies traffic.
-2. On **Collect**, it replays that remembered request with a pagination cursor, walking
-   page-by-page through your history into a private local database.
-3. As you scroll Home, it counts real posts and, every few, weaves one of yours back in —
-   appended *inside* a real tweet cell so X's own layout engine keeps everything aligned.
+Nothing is uploaded to Refeed. The archive lives in your browser's local storage on the extension's own origin. The only network requests go to X's own API, using your existing logged-in session.
 
-Collection runs only when you click it in the popup — Encore never collects or shows
-anything on its own. Nothing leaves your machine that the page wasn't already sending to X.
-
-> 📐 Want the deep version — the three execution contexts, the cross-world messaging, and
-> the decisions behind it? See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-
-## Install
-
-> Encore isn't on the Chrome Web Store (yet), so you load it unpacked. It works on any
-> Chromium browser — Chrome, Edge, Brave, Arc — and needs **Chrome 111+ (Manifest V3)**.
-> **Safari is not supported** (different extension format).
-
-**From a release zip**
-
-1. Download `encore.zip` from [Releases](../../releases) and unzip it.
-2. Open `chrome://extensions` → turn on **Developer mode** (top right).
-3. Click **Load unpacked** → select the unzipped **`encore`** folder (the one containing
-   `manifest.json`).
-
-**From source**
+## Install From Source
 
 ```bash
-git clone https://github.com/mesomya/encore.git
+git clone https://github.com/mesomya/refeed.git
 ```
 
-…then **Load unpacked** → select the `encore` folder.
+Then open `chrome://extensions`, enable Developer mode, click **Load unpacked**, and select the repository folder containing `manifest.json`.
 
-## First run
+## First Run
 
-1. Pin Encore (🧩 puzzle icon → 📌).
-2. On **x.com** (logged in), open your **Bookmarks** page once, and your **Likes** tab
-   once. That's the one-time step that teaches Encore the request it replays — it happens
-   silently in the background.
-3. Open the Encore popup → **Collect everything**, then head to Home and scroll.
-
-Re-run **Collect** from the popup whenever you want to pull in newly saved posts.
+1. Log in to x.com.
+2. Open your Bookmarks page once. If you want liked posts too, open your Likes tab once.
+3. Open the Refeed popup and click **Collect everything**.
+4. Go to Home and scroll. Saved posts will appear between normal posts.
+5. If nothing appears after collecting, hard-refresh the X tab with Ctrl/Cmd+Shift+R and scroll again.
 
 ## Configuration
 
 | Control | What it does |
 | --- | --- |
-| **Replay in my feed** | Master switch for slipping posts into your timeline. |
-| **Spacing** | Show one of yours every _N_ real posts (default 5). |
-| **Depth** | How many pages to walk per source when collecting (default 40). |
-| **Collect everything / Likes only / Saves only** | Pull history for both kinds or one. |
-| **Empty the library** | Wipe the local database (two-tap confirm). |
-| **Options (⚙)** | Choose what to bring back, avoid repeats per visit, set appearance. |
+| **Replay in my feed** | Turns timeline resurfacing on or off. |
+| **Spacing** | Controls how often a saved post appears. |
+| **Depth** | Controls how far back Collect walks. |
+| **Collect everything** | Collects bookmarks and, if enabled, likes. |
+| **Likes only / Saves only** | Collects one source at a time. |
+| **Empty the library** | Deletes the local archive. |
 
 ## Privacy
 
-- All data lives in a local **IndexedDB** on the extension's own origin — not readable by
-  x.com, never uploaded anywhere.
-- Host access is limited to `x.com` / `twitter.com`. The other permissions are `storage`
-  (the local archive), `scripting` (attach to an x.com tab that was already open when
-  Encore loaded), and `webRequest` — used **read-only**, to observe the Bookmarks/Likes
-  request X already makes so Encore can replay it. It never blocks or changes traffic.
-- Encore reads **only your own** liked and saved posts, through your own logged-in
-  session — the same data X already shows you.
+- Refeed stores collected posts locally in IndexedDB and `chrome.storage.local`.
+- Refeed does not have a server and does not upload your archive anywhere.
+- Refeed never likes, follows, posts, replies, or sends messages for you.
+- Host access is limited to `x.com` and `twitter.com`.
+- The `webRequest` permission is used read-only to identify the Bookmarks/Likes request your browser already makes. Refeed does not block, modify, redirect, or transmit requests.
+
+See [PRIVACY.md](PRIVACY.md) for the full policy.
 
 ## Development
 
-No build, no dependencies. Edit a file, hit **↻ reload** on the Encore card in
-`chrome://extensions`, hard-refresh your x.com tab. See
-[`CONTRIBUTING.md`](CONTRIBUTING.md) for the workflow and how to test, and
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how everything fits together.
+No build step and no dependencies. Edit files, reload the extension in `chrome://extensions`, then hard-refresh x.com.
 
-```
-encore/
-├─ manifest.json        # MV3 manifest
+```text
+refeed/
+├─ manifest.json
 ├─ src/
-│  ├─ page-hook.js      # MAIN world: captures + replays X's GraphQL requests
-│  ├─ content.js        # ISOLATED world: bridge + weaves cards into the timeline
-│  ├─ background.js     # service worker: IndexedDB archive, settings, collect
-│  ├─ mixer.css         # styles for the woven-in cards
-│  └─ popup/            # the control panel
-├─ icons/               # generated PNG icons
-├─ tools/make-icons.mjs # regenerates the icons (no dependencies)
-└─ docs/                # architecture notes + screenshots
+│  ├─ background.js
+│  ├─ content.js
+│  ├─ page-hook.js
+│  ├─ mixer.css
+│  └─ popup/
+├─ icons/
+├─ docs/
+└─ tools/
 ```
-
-## Contributing
-
-Issues and PRs welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). The short version:
-keep it vanilla, keep it local, and don't let look-alike request names sneak into the
-collector. 🙂
 
 ## License
 
@@ -179,6 +102,4 @@ collector. 🙂
 
 ---
 
-<sub>Encore is an independent personal project and is **not affiliated with, endorsed by,
-or sponsored by X Corp.** "X" and related marks belong to their respective owners. It
-reads only your own data, through your own session, on your own machine.</sub>
+<sub>Refeed is an independent project and is not affiliated with, endorsed by, or sponsored by X Corp. X and related marks belong to their respective owners.</sub>

@@ -1,4 +1,4 @@
-# OS / editor cruft
+﻿# OS / editor cruft
 .DS_Store
 Thumbs.db
 desktop.ini
@@ -12,10 +12,10 @@ node_modules/
 /dist/
 *.zip
 
-# Secrets — never commit
+# Secrets - never commit
 .env
 .env.*
 *.local
 
 # Local-only artifacts (not part of the project)
-encore-chat-recovered.md
+*-chat-recovered.md

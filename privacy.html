@@ -1,88 +1,54 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Encore — Privacy Policy</title>
-<style>
-  body { max-width: 720px; margin: 48px auto; padding: 0 20px;
-    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: #0f1419; }
-  h1 { font-size: 28px; margin-bottom: 4px; }
-  h2 { font-size: 19px; margin-top: 34px; }
-  code { background: #eff3f4; padding: 1px 5px; border-radius: 5px; font-size: 14px; }
-  .muted { color: #536471; }
-  a { color: #1d9bf0; }
-  ul { padding-left: 22px; }
-  li { margin: 6px 0; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Refeed Privacy Policy</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 760px; margin: 48px auto; padding: 0 20px; line-height: 1.6; color: #18202a; }
+    h1, h2 { line-height: 1.2; }
+    code { background: #f2f4f7; padding: 2px 5px; border-radius: 5px; }
+    .muted { color: #5b6675; }
+  </style>
 </head>
 <body>
-<h1>Encore — Privacy Policy</h1>
-<p class="muted">Last updated: June 2026</p>
+  <h1>Refeed Privacy Policy</h1>
+  <p class="muted">Last updated: June 2026</p>
+  <p>Refeed is a browser extension that brings your saved X bookmarks back into your Home timeline. It can also collect liked posts if you choose to include them, but bookmarks are the primary use case.</p>
 
-<p>Encore is a browser extension that brings the posts you have liked and bookmarked on X
-(x.com / twitter.com) back into your Home timeline, and keeps a private archive of them.
-This policy explains exactly what data Encore touches and what it does with it.</p>
+  <h2>Short Version</h2>
+  <p>Refeed works locally on your device. It has no server, no account system, no analytics, and no advertising. It does not sell, share, or upload your data.</p>
 
-<h2>The short version</h2>
-<p>Everything Encore does happens <strong>on your own device</strong>. Encore has no server,
-no account, and no analytics. It never sends your data anywhere, never sells or shares it,
-and never accesses your X password or login token.</p>
+  <h2>Data Refeed Accesses</h2>
+  <ul>
+    <li><strong>Your X bookmarks</strong>: post text, author, media URL, counts, timestamp, and original post link.</li>
+    <li><strong>Your liked posts, if you choose to collect them</strong>: the same post fields listed above.</li>
+    <li><strong>Request shape for X Bookmarks/Likes</strong>: Refeed observes, read-only, the X GraphQL request your browser already makes so it can later fetch your own saved posts when you press Collect.</li>
+  </ul>
 
-<h2>What data Encore accesses</h2>
-<ul>
-  <li><strong>Your liked and bookmarked posts</strong> — their text, images, author, and links.
-  This is the content Encore is built to re-surface, and it is stored locally so it can be shown
-  back to you in your own feed.</li>
-  <li><strong>The shape of the requests your browser already makes to X</strong> for your
-  Bookmarks and Likes. Encore reads these on a read-only basis (via the <code>webRequest</code>
-  permission) only to learn how to ask X for your own posts, then replays that request using your
-  existing logged-in session. It does not record your browsing and does not observe any site
-  other than X.</li>
-</ul>
+  <h2>Data Refeed Does Not Access</h2>
+  <p>Refeed does not access your X password, your <code>auth_token</code> session cookie, payment information, location, personal communications, or any website outside x.com / twitter.com.</p>
 
-<h2>What Encore never accesses</h2>
-<ul>
-  <li>Your X password or login cookie — the <code>auth_token</code> session cookie is never read.</li>
-  <li>Any website other than x.com / twitter.com.</li>
-  <li>Your name, email, location, payment details, browsing history, or any personally
-  identifying information.</li>
-</ul>
+  <h2>Storage</h2>
+  <p>Collected posts and settings are stored locally in the browser using IndexedDB and <code>chrome.storage.local</code>, on the extension's private origin. Removing the extension or using <strong>Empty the library</strong> deletes the local archive.</p>
 
-<h2>Where your data is stored</h2>
-<p>Your collected posts and settings live in the browser's own local storage on your device
-(<code>chrome.storage.local</code> and IndexedDB, on the extension's private origin). Nothing is
-ever uploaded to Encore or to any third party. The only network requests Encore makes go to X's
-own servers — the same ones your browser already talks to — to fetch your own posts.</p>
+  <h2>Network Requests</h2>
+  <p>The only network requests Refeed makes go to X's own API, using your existing logged-in browser session, to fetch your own bookmarks or liked posts. Refeed does not send your data to any third-party server.</p>
 
-<h2>Data sharing, sale, and use</h2>
-<p>Encore does not sell or transfer your data to anyone. It does not use your data for
-advertising, creditworthiness, lending, or any purpose other than showing your own saved posts
-back to you. It performs no action on your account — it never likes, follows, posts, replies, or
-messages on your behalf.</p>
+  <h2>Account Actions</h2>
+  <p>Refeed is read-only. It never likes, follows, posts, replies, reposts, bookmarks, unbookmarks, or sends messages on your behalf.</p>
 
-<h2>Removing your data</h2>
-<p>Use &ldquo;Empty the library&rdquo; in the Encore popup to wipe your local archive at any time,
-or remove the extension to delete everything it stored.</p>
+  <h2>Permissions</h2>
+  <ul>
+    <li><code>storage</code> / <code>unlimitedStorage</code>: keep your local archive and settings.</li>
+    <li><code>scripting</code>: attach Refeed to an x.com tab that was already open when the extension was enabled.</li>
+    <li><code>webRequest</code>: read-only; identify the Bookmarks/Likes request your browser already makes. Refeed never blocks, modifies, or redirects requests.</li>
+    <li>Host access to <code>x.com</code> / <code>twitter.com</code>: Refeed runs only on X.</li>
+  </ul>
 
-<h2>Permissions, and why they are used</h2>
-<ul>
-  <li><code>storage</code> / <code>unlimitedStorage</code> — keep your archive and settings on your device.</li>
-  <li><code>scripting</code> — attach Encore to an x.com tab that was already open when the extension was enabled, without forcing a reload.</li>
-  <li><code>webRequest</code> — read-only; learn the shape of your own Bookmarks/Likes request so it can be replayed. It never blocks, modifies, or redirects any request.</li>
-  <li>Host access to <code>x.com</code> / <code>twitter.com</code> — Encore runs only on X.</li>
-</ul>
-
-<h2>Open source</h2>
-<p>Encore's full source code is public, so anyone can verify exactly what it does:
-<a href="https://github.com/mesomya/encore">github.com/mesomya/encore</a>.</p>
-
-<h2>Contact</h2>
-<p>Questions or concerns: open an issue at
-<a href="https://github.com/mesomya/encore/issues">github.com/mesomya/encore/issues</a>.</p>
-
-<p class="muted">Encore is an independent project and is not affiliated with, endorsed by, or
-sponsored by X Corp.</p>
+  <h2>Open Source</h2>
+  <p>Source code: <a href="https://github.com/mesomya/refeed">github.com/mesomya/refeed</a></p>
+  <p>Questions or concerns: <a href="https://github.com/mesomya/refeed/issues">github.com/mesomya/refeed/issues</a></p>
+  <p class="muted">Refeed is independent and is not affiliated with, endorsed by, or sponsored by X Corp.</p>
 </body>
 </html>

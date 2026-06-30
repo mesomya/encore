@@ -1,4 +1,4 @@
-/* popup.js — the control surface. Talks to the background worker in the real
+﻿/* popup.js â€” the control surface. Talks to the background worker in the real
    extension; falls back to a self-contained mock when opened as a plain page
    (so the UI can be previewed and demoed without a logged-in X session). */
 
@@ -92,7 +92,7 @@ function relTime(ts) {
 function countUp(elm, to) {
   const from = Number(elm.dataset.val || 0) || 0;
   elm.dataset.val = to;
-  // No sense animating an invisible popup — just show the number.
+  // No sense animating an invisible popup â€” just show the number.
   if (from === to || document.hidden || typeof requestAnimationFrame !== "function") {
     elm.textContent = nf.format(to);
     return;
@@ -157,7 +157,7 @@ function setBusy(on, label) {
   prog.hidden = !on;
   if (on) {
     $("bar").classList.add("indeterminate");
-    setStatus(label || "Collecting…", "busy");
+    setStatus(label || "Collectingâ€¦", "busy");
   } else {
     $("bar").classList.remove("indeterminate");
   }
@@ -168,7 +168,7 @@ function renderHint(meta) {
   const cap = meta?.captured || {};
   if (IS_EXT && !cap.bookmarks && !cap.likes) {
     hint.innerHTML =
-      "<b>First time?</b> Open your Bookmarks (or Likes) page on X just once. That's all Encore needs to start pulling in your whole history.";
+      "<b>First time?</b> Open your Bookmarks (or Likes) page on X just once. That's all Refeed needs to start pulling in your whole history.";
     hint.className = "hint tip";
     hint.hidden = false;
   } else {
@@ -189,7 +189,7 @@ async function load() {
   const state = await bus.send({ type: "GET_STATE" });
   renderSettings(state.settings);
   setStats(state.stats);
-  if (state.sync?.active) setBusy(true, "Syncing…");
+  if (state.sync?.active) setBusy(true, "Syncingâ€¦");
   else idleStatus(state.meta);
   renderHint(state.meta);
 }
@@ -216,11 +216,11 @@ function clampInt(v, min, max, fallback) {
 
 async function startSync(kind) {
   if (syncing) return;
-  setBusy(true, kind === "both" ? "Gathering your history…" : `Gathering ${srcWord(kind)}…`);
+  setBusy(true, kind === "both" ? "Gathering your historyâ€¦" : `Gathering ${srcWord(kind)}â€¦`);
   const res = await bus.send({ type: "START_SYNC", kind });
   if (!res || !res.ok) {
     setBusy(false);
-    setStatus(res?.error || "Couldn't start — open x.com in a tab first", "error");
+    setStatus(res?.error || "Couldn't start â€” open x.com in a tab first", "error");
   }
 }
 
@@ -299,10 +299,10 @@ clearBtn.addEventListener("click", async () => {
 bus.on((msg) => {
   if (!msg || !msg.type) return;
   if (msg.type === "SYNC_STARTED") {
-    setBusy(true, `Gathering ${msg.kind === "both" ? "your history" : srcWord(msg.kind)}…`);
+    setBusy(true, `Gathering ${msg.kind === "both" ? "your history" : srcWord(msg.kind)}â€¦`);
   } else if (msg.type === "SYNC_PROGRESS") {
     if (msg.stats) setStats(msg.stats);
-    setStatus(`Gathering ${srcWord(msg.source)}… ${nf.format(msg.total || 0)} so far`, "busy");
+    setStatus(`Gathering ${srcWord(msg.source)}â€¦ ${nf.format(msg.total || 0)} so far`, "busy");
   } else if (msg.type === "SYNC_DONE") {
     setBusy(false);
     if (msg.stats) setStats(msg.stats);

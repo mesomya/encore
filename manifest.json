@@ -1,46 +1,64 @@
-{
-  "manifest_version": 3,
-  "name": "Encore",
-  "version": "1.1.0",
-  "description": "Brings the X posts you've liked and saved back into your timeline, and keeps a private, on-device archive of them all.",
-  "permissions": ["storage", "unlimitedStorage", "scripting", "webRequest"],
-  "host_permissions": [
-    "https://x.com/*",
-    "https://twitter.com/*"
-  ],
-  "background": {
-    "service_worker": "src/background.js",
-    "type": "module"
-  },
-  "action": {
-    "default_title": "Encore",
-    "default_popup": "src/popup/popup.html",
-    "default_icon": {
-      "16": "icons/icon-16.png",
-      "32": "icons/icon-32.png",
-      "48": "icons/icon-48.png",
-      "128": "icons/icon-128.png"
-    }
-  },
-  "icons": {
-    "16": "icons/icon-16.png",
-    "32": "icons/icon-32.png",
-    "48": "icons/icon-48.png",
-    "128": "icons/icon-128.png"
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://x.com/*", "https://twitter.com/*"],
-      "js": ["src/page-hook.js"],
-      "run_at": "document_start",
-      "world": "MAIN"
-    },
-    {
-      "matches": ["https://x.com/*", "https://twitter.com/*"],
-      "js": ["src/content.js"],
-      "css": ["src/mixer.css"],
-      "run_at": "document_start",
-      "world": "ISOLATED"
-    }
-  ]
+﻿{
+    "manifest_version":  3,
+    "name":  "Refeed - X Bookmarks in Feed",
+    "version":  "1.2.0",
+    "description":  "Bring your saved X bookmarks back into your timeline, with liked posts as an optional extra. Private and on-device.",
+    "permissions":  [
+                        "storage",
+                        "unlimitedStorage",
+                        "scripting",
+                        "webRequest"
+                    ],
+    "host_permissions":  [
+                             "https://x.com/*",
+                             "https://twitter.com/*"
+                         ],
+    "background":  {
+                       "service_worker":  "src/background.js",
+                       "type":  "module"
+                   },
+    "action":  {
+                   "default_title":  "Refeed",
+                   "default_popup":  "src/popup/popup.html",
+                   "default_icon":  {
+                                        "16":  "icons/icon-16.png",
+                                        "32":  "icons/icon-32.png",
+                                        "48":  "icons/icon-48.png",
+                                        "128":  "icons/icon-128.png"
+                                    }
+               },
+    "icons":  {
+                  "16":  "icons/icon-16.png",
+                  "32":  "icons/icon-32.png",
+                  "48":  "icons/icon-48.png",
+                  "128":  "icons/icon-128.png"
+              },
+    "content_scripts":  [
+                            {
+                                "matches":  [
+                                                "https://x.com/*",
+                                                "https://twitter.com/*"
+                                            ],
+                                "js":  [
+                                           "src/page-hook.js"
+                                       ],
+                                "run_at":  "document_start",
+                                "world":  "MAIN"
+                            },
+                            {
+                                "matches":  [
+                                                "https://x.com/*",
+                                                "https://twitter.com/*"
+                                            ],
+                                "js":  [
+                                           "src/content.js"
+                                       ],
+                                "css":  [
+                                            "src/mixer.css"
+                                        ],
+                                "run_at":  "document_start",
+                                "world":  "ISOLATED"
+                            }
+                        ],
+    "short_name":  "Refeed"
 }
