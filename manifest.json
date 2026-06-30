@@ -1,6 +1,6 @@
 ﻿{
     "manifest_version":  3,
-    "name":  "Refeed - X Bookmarks in Feed",
+    "name":  "Refeed - X Bookmarks in Your Feed",
     "version":  "1.2.0",
     "description":  "Bring your saved X bookmarks back into your timeline, with liked posts as an optional extra. Private and on-device.",
     "permissions":  [

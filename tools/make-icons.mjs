@@ -1,6 +1,9 @@
-// Generates the toolbar/store icons with zero dependencies: render a rounded
-// blue tile with a white circular "replay" arrow at 4x, box-downsample for
-// antialiasing, then hand-encode PNG (IHDR/IDAT/IEND + CRC).
+// Generates transparent Refeed icons with zero dependencies.
+//
+// The mark is intentionally simple: a single X-blue bookmark glyph on a
+// transparent canvas. Chrome/Edge render it cleanly in the toolbar, and the
+// Web Store can place it on any background.
+//
 // Run: node tools/make-icons.mjs
 import zlib from "node:zlib";
 import { writeFileSync, mkdirSync } from "node:fs";
@@ -10,19 +13,18 @@ import { dirname, join } from "node:path";
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "icons");
 mkdirSync(OUT, { recursive: true });
 
-const C0 = [29, 155, 240]; // #1d9bf0
-const C1 = [10, 108, 255]; // #0a6cff
-const lerp = (a, b, t) => a + (b - a) * t;
+const BLUE = [29, 155, 240]; // X blue, #1d9bf0
 
-// Coverage helpers on a normalized [0,1] canvas ------------------------------
-function roundedRectCover(x, y, r) {
-  // tile occupies the full [0,1] square with corner radius r
-  const dx = Math.min(x, 1 - x);
-  const dy = Math.min(y, 1 - y);
-  if (dx >= r || dy >= r) return x >= 0 && x <= 1 && y >= 0 && y <= 1 ? 1 : 0;
-  const ddx = r - dx;
-  const ddy = r - dy;
-  return ddx * ddx + ddy * ddy <= r * r ? 1 : 0;
+function clamp(v, lo = 0, hi = 1) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function roundedRectSdf(x, y, cx, cy, w, h, r) {
+  const qx = Math.abs(x - cx) - w / 2 + r;
+  const qy = Math.abs(y - cy) - h / 2 + r;
+  const ox = Math.max(qx, 0);
+  const oy = Math.max(qy, 0);
+  return Math.hypot(ox, oy) + Math.min(Math.max(qx, qy), 0) - r;
 }
 
 function inTriangle(px, py, ax, ay, bx, by, cx, cy) {
@@ -32,25 +34,45 @@ function inTriangle(px, py, ax, ay, bx, by, cx, cy) {
   return s >= 0 && t >= 0 && s + t <= 1;
 }
 
-function replayInside(x, y) {
-  // a circular arrow (refresh / "bring it back around") with a gap + arrowhead
-  const cx = 0.5, cy = 0.51;
-  const dx = x - cx, dy = y - cy;
-  const dist = Math.hypot(dx, dy);
-  const R = 0.205, t = 0.057; // ring radius + half thickness
-  const ang = Math.atan2(dy, dx); // 0=east, +=clockwise (screen y is down)
+function bookmarkCoverage(x, y, scale) {
+  // Body: slightly rounded top corners, straight sides, centered bookmark notch.
+  // Coordinates are normalized to [0,1].
+  const left = 0.285;
+  const right = 0.715;
+  const top = 0.145;
+  const bottom = 0.855;
+  const notchY = 0.655;
+  const notchHalf = 0.105;
+  const radius = 0.055;
 
-  // Ring everywhere except an opening at the top (north → north-east),
-  // where the arrowhead lives.
-  const onRing = Math.abs(dist - R) <= t;
-  const inGap = ang > -Math.PI / 2 - 0.12 && ang < -0.18;
-  if (onRing && !inGap) return true;
+  // Rounded rectangle body up to the notch shoulders.
+  const body = roundedRectSdf(
+    x,
+    y,
+    (left + right) / 2,
+    (top + notchY) / 2,
+    right - left,
+    notchY - top,
+    radius,
+  );
 
-  // Arrowhead: a triangle at the north end of the ring, pointing east
-  // (clockwise), so the whole mark reads as rotating.
-  const tipx = 0.5 + 0.115, tipy = 0.305;
-  if (inTriangle(x, y, 0.5, 0.305 - 0.092, 0.5, 0.305 + 0.092, tipx, tipy)) return true;
-  return false;
+  // Two tails below the shoulders.
+  const leftTail =
+    x >= left &&
+    x <= 0.5 &&
+    y >= notchY - 0.01 &&
+    y <= bottom &&
+    inTriangle(x, y, left, notchY - 0.01, 0.5, bottom, 0.5 - notchHalf, notchY - 0.01);
+  const rightTail =
+    x >= 0.5 &&
+    x <= right &&
+    y >= notchY - 0.01 &&
+    y <= bottom &&
+    inTriangle(x, y, right, notchY - 0.01, 0.5, bottom, 0.5 + notchHalf, notchY - 0.01);
+
+  const aa = 1.5 / scale;
+  const bodyCov = clamp(0.5 - body / aa);
+  return Math.max(bodyCov, leftTail ? 1 : 0, rightTail ? 1 : 0);
 }
 
 function render(size) {
@@ -59,33 +81,20 @@ function render(size) {
   const buf = new Uint8Array(size * size * 4);
   for (let py = 0; py < size; py++) {
     for (let px = 0; px < size; px++) {
-      let r = 0, g = 0, b = 0, a = 0;
+      let a = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
           const fx = (px * SS + sx + 0.5) / R;
           const fy = (py * SS + sy + 0.5) / R;
-          const tile = roundedRectCover(fx, fy, 0.235);
-          if (!tile) continue;
-          let cr = lerp(C0[0], C1[0], (fx + fy) / 2);
-          let cg = lerp(C0[1], C1[1], (fx + fy) / 2);
-          let cb = lerp(C0[2], C1[2], (fx + fy) / 2);
-          if (replayInside(fx, fy)) {
-            cr = 255;
-            cg = 255;
-            cb = 255;
-          }
-          r += cr;
-          g += cg;
-          b += cb;
-          a += 255;
+          a += bookmarkCoverage(fx, fy, R);
         }
       }
-      const n = SS * SS;
+      a /= SS * SS;
       const i = (py * size + px) * 4;
-      buf[i] = Math.round(r / n);
-      buf[i + 1] = Math.round(g / n);
-      buf[i + 2] = Math.round(b / n);
-      buf[i + 3] = Math.round(a / n);
+      buf[i] = BLUE[0];
+      buf[i + 1] = BLUE[1];
+      buf[i + 2] = BLUE[2];
+      buf[i + 3] = Math.round(a * 255);
     }
   }
   return buf;
