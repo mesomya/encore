@@ -1,7 +1,7 @@
-﻿{
+{
     "manifest_version":  3,
     "name":  "Refeed - X Bookmarks in Your Feed",
-    "version":  "1.2.0",
+    "version":  "1.3.0",
     "description":  "Bring your saved X bookmarks back into your timeline, so the posts you meant to revisit actually resurface.",
     "permissions":  [
                         "storage",

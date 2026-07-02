@@ -1,5 +1,5 @@
 ﻿/*
- * page-hook.js  â€”  runs in the MAIN world (the page's own JS context).
+ * page-hook.js  —  runs in the MAIN world (the page's own JS context).
  *
  * X's web client talks to its private GraphQL API with a bundle of auth that
  * only the page itself holds: a bearer token, the `ct0` CSRF token, and a
@@ -13,7 +13,7 @@
 (() => {
   "use strict";
 
-  // Installed once per page. We may be injected twice â€” by the manifest at
+  // Installed once per page. We may be injected twice — by the manifest at
   // document_start AND programmatically by the worker into a tab that was
   // already open. Guard so we never wrap fetch/XHR more than once.
   if (window.__REFEED_PAGE_HOOK__) return;
@@ -66,6 +66,27 @@
 
   const get = (o, path) => path.reduce((a, k) => (a == null ? a : a[k]), o);
 
+  // X HTML-escapes tweet text (&amp; &lt; &gt; and friends) — decode it so the
+  // archive stores what the user actually reads, not raw entities.
+  // Mirrored in content.js (decodeEntities) for posts archived before this fix.
+  const codePoint = (n) => {
+    try {
+      return String.fromCodePoint(n);
+    } catch (_) {
+      return "";
+    }
+  };
+  function decodeEntities(s) {
+    return s
+      .replace(/&#x([0-9a-f]+);/gi, (_, h) => codePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (_, d) => codePoint(Number(d)))
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&amp;/g, "&");
+  }
+
   // Turn a raw GraphQL tweet `result` into a compact record we can render.
   function normalizeTweet(result) {
     if (!result || typeof result !== "object") return null;
@@ -98,7 +119,7 @@
       tco: m.url, // the t.co link embedded in the text
     }));
 
-    // X appends a t.co link for media to full_text â€” strip it for clean display.
+    // X appends a t.co link for media to full_text — strip it for clean display.
     for (const m of media) {
       if (m.tco) text = text.replace(m.tco, "").trim();
     }
@@ -107,6 +128,7 @@
     for (const u of urls) {
       if (u.url && u.display_url) text = text.replace(u.url, "https://" + u.expanded_url.replace(/^https?:\/\//, ""));
     }
+    text = decodeEntities(text);
 
     return {
       id,
@@ -182,12 +204,12 @@
   function classify(opName) {
     const n = opName.toLowerCase();
     // Match by substring so we survive X renaming ops (Bookmarks,
-    // BookmarksAllInOne, UserLikes, â€¦). But exclude look-alikes that share the
+    // BookmarksAllInOne, UserLikes, …). But exclude look-alikes that share the
     // word yet aren't the timeline we want:
-    //  - "folder" â†’ BookmarkFoldersSlice / BookmarkFolderTimeline: the folder
+    //  - "folder" → BookmarkFoldersSlice / BookmarkFolderTimeline: the folder
     //    LIST returns no tweets, and capturing it overwrote the real Bookmarks
-    //    recipe â€” that's why collect fetched 0 despite a full archive.
-    //  - "liker"/"unlike"/"dislike" â†’ not the user's own Likes timeline.
+    //    recipe — that's why collect fetched 0 despite a full archive.
+    //  - "liker"/"unlike"/"dislike" → not the user's own Likes timeline.
     if (n.includes("folder")) return null;
     if (n.includes("bookmark")) return "bookmarks";
     if (n.includes("home")) return "home";
@@ -236,7 +258,7 @@
     // Persist the template so a later session can collect without re-teaching.
     post({ type: "TEMPLATE", kind, template: templates[kind] });
     // Seeing this request means the user is on (or loading) their bookmarks/
-    // likes page â€” tell the content script so it can auto-collect. Our own
+    // likes page — tell the content script so it can auto-collect. Our own
     // replay uses origFetch and bypasses this hook, so it won't echo back here.
     post({ type: "SOURCE_SEEN", kind });
     emitStatus();
@@ -263,14 +285,14 @@
       const m = url.match(GQL_RE);
       kind = classify(m[2]);
       // Only learn from / harvest the list READ (GET). Bookmark + unbookmark are
-      // POST mutations that share the "bookmark" name â€” capturing one would
+      // POST mutations that share the "bookmark" name — capturing one would
       // overwrite the collect recipe with a request that can't paginate.
       if ((kind === "bookmarks" || kind === "likes") && method === "GET") {
         try {
           captureTemplate(kind, url, headersFrom(input, init));
         } catch (_) {}
       } else if (kind === "bookmarks" || kind === "likes") {
-        kind = null; // a mutation, not the timeline â€” ignore it
+        kind = null; // a mutation, not the timeline — ignore it
       }
     }
 
@@ -310,7 +332,7 @@
       const op = info.url.match(GQL_RE)[2];
       const kind = classify(op);
       const method = (info.method || "GET").toUpperCase();
-      // GET only â€” ignore bookmark/unbookmark mutations (see fetch patch).
+      // GET only — ignore bookmark/unbookmark mutations (see fetch patch).
       if ((kind === "bookmarks" || kind === "likes") && method === "GET") {
         try {
           captureTemplate(kind, info.url, info.headers);
@@ -358,7 +380,7 @@
 
   async function runSync(kind, maxPages, requestId, fallback, knownIds) {
     // Posts we already have (newest-first ordering lets us stop when we reach
-    // them). Empty set â‡’ first-ever collect â‡’ walk the full history.
+    // them). Empty set ⇒ first-ever collect ⇒ walk the full history.
     const known = new Set(knownIds || []);
 
     // Prefer a template captured this session; fall back to a persisted one.
@@ -395,7 +417,7 @@
           parsed = await fetchPage(tpl, cursor, count);
         } catch (e) {
           if (count > 20 && (e.status === 400 || e.status === 404)) {
-            count = 20; // some endpoints cap the page size â€” retry smaller
+            count = 20; // some endpoints cap the page size — retry smaller
             continue;
           }
           throw e;
@@ -415,7 +437,7 @@
         });
 
         // Incremental: once a whole page is posts we already have, we've caught
-        // up to the previously-collected history â€” stop instead of re-walking it.
+        // up to the previously-collected history — stop instead of re-walking it.
         const newOnPage = known.size
           ? tweets.reduce((a, t) => a + (known.has(t.id) ? 0 : 1), 0)
           : tweets.length;

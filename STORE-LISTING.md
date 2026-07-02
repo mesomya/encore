@@ -1,4 +1,4 @@
-﻿# Refeed Chrome Web Store Listing Kit
+# Refeed Chrome Web Store Listing Kit
 
 Use this file when updating the Chrome Web Store listing for Refeed.
 

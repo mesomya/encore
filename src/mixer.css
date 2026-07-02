@@ -110,6 +110,34 @@
   color: var(--xhm-muted);
   flex: 0 0 auto;
 }
+/* top-right header icons (Grok + More) — pushed to the far right like X */
+.xhm-head-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  color: var(--xhm-muted);
+}
+.xhm-head-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.xhm-head-ic {
+  display: inline-flex;
+}
+.xhm-head-ic svg {
+  width: 18.75px;
+  height: 18.75px;
+  fill: currentColor;
+}
+/* The Grok mark is a sparse glyph — render it a touch larger so it reads at the
+   same weight as the solid icons (More, bookmark, share) beside it. */
+.xhm-head-grok .xhm-head-ic svg {
+  width: 21px;
+  height: 21px;
+}
 
 /* body */
 .xhm-text {
@@ -117,6 +145,29 @@
   white-space: pre-wrap;
   word-wrap: break-word;
   overflow-wrap: break-word;
+}
+/* @mentions — X's link blue, clickable straight from the timeline */
+.xhm-text .xhm-mention {
+  color: rgb(29, 155, 240);
+  text-decoration: none;
+}
+.xhm-text .xhm-mention:hover {
+  text-decoration: underline;
+}
+/* "Show more" on a clipped long post — X's inline blue link. Expands the post
+   in place (see buildText); it's a real button so keyboard/AT users get it too. */
+.xhm-text .xhm-showmore {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: rgb(29, 155, 240);
+  cursor: pointer;
+}
+.xhm-text .xhm-showmore:hover {
+  text-decoration: underline;
 }
 .xhm-media {
   margin-top: 12px;
@@ -168,6 +219,91 @@
   width: 18.75px;
   height: 18.75px;
   fill: currentColor;
+}
+
+/* hover tooltips — X's small dark pill under a button. Pure CSS: the label
+   lives in data-xhm-tip, shown on hover after a short delay so it doesn't
+   flicker as the pointer crosses the action bar. */
+.xhm-tip {
+  position: relative;
+}
+.xhm-tip::after {
+  content: attr(data-xhm-tip);
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 11px;
+  line-height: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 20;
+  transition: opacity 0.06s ease;
+}
+.xhm-tip:hover::after {
+  opacity: 1;
+  transition-delay: 0.35s;
+}
+
+/* Engagement hover — X's colored halo + recolor. Reply / Views / Bookmark /
+   Share are blue, Repost green, Like pink: on hover the icon gets a translucent
+   round highlight and the icon + count recolor, exactly like a native post.
+   Each button carries its color as an "r, g, b" triple in --xhm-hi. */
+.xhm-c-blue {
+  --xhm-hi: 29, 155, 240;
+}
+.xhm-c-green {
+  --xhm-hi: 0, 186, 124;
+}
+.xhm-c-pink {
+  --xhm-hi: 249, 24, 128;
+}
+.xhm-act,
+.xhm-head-btn {
+  transition: color 0.2s ease;
+}
+.xhm-act-ic,
+.xhm-head-ic {
+  position: relative;
+}
+.xhm-act-ic svg,
+.xhm-head-ic svg {
+  position: relative;
+  z-index: 1;
+}
+.xhm-act-ic::before,
+.xhm-head-ic::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34.75px;
+  height: 34.75px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.xhm-head-ic::before {
+  width: 30px;
+  height: 30px;
+}
+.xhm-act:hover,
+.xhm-head-btn:hover {
+  color: rgb(var(--xhm-hi));
+}
+.xhm-act:hover .xhm-act-ic::before,
+.xhm-head-btn:hover .xhm-head-ic::before {
+  background-color: rgba(var(--xhm-hi), 0.1);
 }
 
 /* Filled action states — native X colors. The icon (fill: currentColor) and
